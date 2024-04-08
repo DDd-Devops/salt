@@ -37,7 +37,13 @@ def __virtual__():
     Check if the os is Linux, and then if selinux is running in permissive or
     enforcing mode.
     """
-    required_cmds = ("semanage", "setsebool", "semodule")
+    required_cmds = (
+        "checkmodule",
+        "semanage",
+        "setsebool",
+        "semodule",
+        "semodule_package",
+    )
 
     # Iterate over all of the commands this module uses and make sure
     # each of them are available in the standard PATH to prevent breakage
@@ -286,6 +292,44 @@ def setsemod(module, state):
         cmd = f"semodule -e {module}"
     elif state.lower() == "disabled":
         cmd = f"semodule -d {module}"
+    return not __salt__["cmd.retcode"](cmd)
+
+
+def check_semod(module_path):
+    """
+    Check custom SELinux module from file
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' selinux.check_semod [salt://]path/to/module.te
+
+    .. versionadded:: 3006.7
+    """
+    if module_path.find("salt://") == 0:
+        module_path = __salt__["cp.cache_file"](module_path)
+    module_name = module_path.rstrip(".te")
+    cmd = f"checkmodule -M -m -o {module_name}.mod {module_path}"
+    return not __salt__["cmd.retcode"](cmd)
+
+
+def package_semod(module_path):
+    """
+    Package custom SELinux module from file
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' selinux.package_semod [salt://]path/to/module.mod
+
+    .. versionadded:: 3006.7
+    """
+    if module_path.find("salt://") == 0:
+        module_path = __salt__["cp.cache_file"](module_path)
+    module_name = module_path.rstrip(".mod")
+    cmd = f"semodule_package -o {module_name}.pp -m {module_path}"
     return not __salt__["cmd.retcode"](cmd)
 
 
