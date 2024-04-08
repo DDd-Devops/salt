@@ -262,9 +262,18 @@ def module_install(name):
     .. versionadded:: 2016.11.6
     """
     ret = {"name": name, "result": True, "comment": "", "changes": {}}
-    if __salt__["selinux.install_semod"](name):
-        ret["comment"] = f"Module {name} has been installed"
-        return ret
+    if name.endswith(".pp"):
+        if __salt__["selinux.install_semod"](name):
+            ret["comment"] = f"Module {name} has been installed"
+            return ret
+    if name.find("salt://") == 0:
+        name = __salt__["cp.cache_file"](name)
+    if name.endswith(".te"):
+        if __salt__["selinux.check_semod"](name):
+            if __salt__["selinux.package_semod"](name.replace(".te", ".mod")):
+                if __salt__["selinux.install_semod"](name.replace(".te", ".pp")):
+                    ret["comment"] = f"Module {name} has been installed"
+                    return ret
     ret["result"] = False
     ret["comment"] = f"Failed to install module {name}"
     return ret
